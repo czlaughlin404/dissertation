@@ -9,6 +9,9 @@ fi
 
 source activate pytorch
 
+mkdir $HOME/data/ 2> /dev/null
+mkdir $HOME/predictions/ 2> /dev/null
+
 for f in `cd $HOME/data/;ls -1Sr *.csv | head -1000`
 do
 
