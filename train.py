@@ -1,3 +1,11 @@
+# usage
+# arg1 = input CSV
+# arg2 = output CSV
+# arg3 = model variation
+# arg4 = determines univariate or multivariate data prep
+# python train.py $HOME/data/test.csv $HOME/predictions/test.csv AutoARIMA uv
+#
+
 import numpy as np
 import sys
 import pandas as pd
