@@ -38,4 +38,15 @@ on (ensemble.item_id=t.item_id and ensemble.cat=t.cat and ensemble.timestamp=t.t
 join (select cat, item_id, timestamp, post_prediction as pre_prediction from t_ensemble_tft) pre 
 on (pre.item_id=t.item_id and pre.cat=t.cat and pre.timestamp=t.timestamp)
 
-select cat, abs(target_value-pre_prediction) pre_mae, abs(target_value-post_prediction) post_mae From t_ensemble_rq3_avg
+     
+select 
+     cat, 
+     item_id, 
+     timestamp, 
+     target_value, 
+     pre_prediciton, 
+     post_prediction, 
+     abs(target_value-pre_prediction) pre_mae,
+     abs(target_value-post_prediction) post_mae 
+from 
+     t_ensemble_rq3_avg
