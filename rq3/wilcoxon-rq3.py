@@ -9,11 +9,15 @@ pd.options.display.float_format = '{:.10f}'.format
 
 columns = ["cat","item_id","timetamp" , "target_value","pre_prediction","post_prediction","pre","post"]
 
-df = pd.read_csv(sys.argv[1],
+if len(sys.argv)>1:
+    file=sys.argv[1]
+else:
+    file='s3://dissert-430103706720-datalake/wilcoxon/rq3-ensemble.csv'
+
+df = pd.read_csv(file,
     names = columns,
     low_memory=True,
-    header=1,
-    dtype=str
+    header=1
     )
 
 df = df.astype({'target_value':'float',
@@ -22,10 +26,8 @@ df = df.astype({'target_value':'float',
                 'pre':'float',
                 'post':'float'})
 
-
-print('avg-pre=', df['pre'].mean())
-print('avg-post=', df['post'].mean())
-
+print('Method A=', df['pre'].mean())
+print('Method B=', df['post'].mean())
 
 stat, p = wilcoxon(df['pre'], df['post'])
 print('Wilcoxon Statistics=%.5f, p=%.5f' % (stat, p))
