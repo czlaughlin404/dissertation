@@ -1,47 +1,53 @@
-Use Deep Learning AMI
-ami-09c8945ef3e92c451
+# Build cloud server
 
-Select a CPU size (others exist too)
-Size	vCPUs	Memory (GiB)
-c5.large	2	4
-c5.xlarge	4	8
-c5.2xlarge	8	16
-c5.4xlarge	16	32
-c5.9xlarge	36	72
-c5.12xlarge	48	96
-c5.18xlarge	72	144
-c5.24xlarge	96	192
-c5.metal	96	192
+1. Use Deep Learning machine image with pytorch installed, ami-09c8945ef3e92c451
 
-Add permissions, security groups, etc
-IAM role S3-EC2-Full-Admin 
-VPC  vpc-a31397c8 
-SG sg-04e79bfabc9bbb340 (launch-wizard-3)
+2.  Select a CPU size (others exist too)
+	|    Size|	vCPUs	Memory |(GiB)
+	|-----|------|------|
+	| c5.large	|2|	4|
+	| c5.xlarge|	4	|8|
+	| c5.2xlarge	|8|	16|
+	| c5.4xlarge	|16|	32|
+	| c5.9xlarge|	36|	72|
+	| c5.12xlarge|	48|	96|
+	| c5.18xlarge|	72|	144|
+	| c5.24xlarge|	96	|192|
+	| c5.metal	|96|	192|
 
-Connect to the server via SSH
+3.  Add permissions, security groups, etc
 
-Clone hub and install software
+|  IAM role  |  S3-EC2-Full-Admin |
+|----|----|
+| VPC | vpc-a31397c8 |
+| SG | sg-04e79bfabc9bbb340 (launch-wizard-3)|
 
+4. Connect to the server via SSH
+
+5. Clone hub and install software
+```
 git clone https://github.com/czlaughlin404/dissertation.git
 chmod 770 $HOME/dissertation/*.sh
 cd $HOME/dissertation/
 dependency.sh
+```
 
-
-Harvest data and generate forecasts for any number of discrete data or model types
-
+6. Harvest data and generate forecasts for any number of discrete data or model types
+```
 clear
 source activate pytorch
 python3 harvest.py test1.csv "item_id like '18.%3828100213'"
 python3 harvest.py test2.csv "item_id like '18.%3828100313'"
-
-Train and generate forecast
-
+```
+7. Train and generate forecast
+```
 ./train.sh 
 ./train.sh AutoARIMA uv experimentname
+```
 
-Place data table view on CSV data
+8. Place data lake view on CSV data
 
+```
 CREATE EXTERNAL TABLE experimentname (
   `cat` string, 
   `item_id` string, 
@@ -55,3 +61,4 @@ OUTPUTFORMAT
   'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
 LOCATION
   's3://dissert-430103706720-datalake/experimentname/'
+```
