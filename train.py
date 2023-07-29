@@ -131,7 +131,7 @@ if sys.argv[4] =='uv':
         prediction_length=prediction_length,
         verbosity=verbose_level,
         target="target_value",
-        eval_metric="RMSE",
+        eval_metric="MAE",
         freq="W-THU",
         quantile_levels=[0.5])
 
@@ -145,7 +145,7 @@ else:
         known_covariates_names=known_covariate_names,
         verbosity=verbose_level,
         target="target_value",
-        eval_metric="RMSE",
+        eval_metric="MAE",
         freq="W-THU",
         quantile_levels=[0.5])
 
@@ -185,4 +185,4 @@ else:
 
 predictions.drop(columns=["0.5"], inplace=True)
 predictions["mean"] = round(predictions["mean"],2)
-predictions.to_csv(sys.argv[2])
+predictions.to_csv(sys.argv[2] , header=False)
