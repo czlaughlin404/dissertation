@@ -131,7 +131,7 @@ if sys.argv[4] =='uv':
         prediction_length=prediction_length,
         verbosity=verbose_level,
         target="target_value",
-        eval_metric="MAE",
+        eval_metric="RMSE",
         freq="W-THU",
         quantile_levels=[0.5])
 
@@ -145,7 +145,7 @@ else:
         known_covariates_names=known_covariate_names,
         verbosity=verbose_level,
         target="target_value",
-        eval_metric="MAE",
+        eval_metric="RMSE",
         freq="W-THU",
         quantile_levels=[0.5])
 
