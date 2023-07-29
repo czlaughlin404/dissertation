@@ -1,3 +1,9 @@
+# example usage
+# arg1= output CSV filename
+# arg2= valid SQL where clause wrapped in double quotes
+#
+# python3 harvest.py test.csv "item_id like '%3828100213'"
+#
 import boto3
 import sys
 import awswrangler as wr
