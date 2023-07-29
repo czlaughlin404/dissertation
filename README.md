@@ -336,6 +336,22 @@ on (cl.item_id= d.category||':'||d.item_id)
 #####
 product forecast, harvest, predict
 
+#### house forecast outputs, place table on top of S3 folder, example:
+
+CREATE EXTERNAL TABLE `table`(
+  `cat` string, 
+  `item_id` string, 
+  `timestamp` string, 
+  `post_prediction` float)
+ROW FORMAT DELIMITED 
+  FIELDS TERMINATED BY ',' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.mapred.TextInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION
+  's3://dissert-430103706720-datalake/folder/folder'
+  
 
 
 ### Table 6
