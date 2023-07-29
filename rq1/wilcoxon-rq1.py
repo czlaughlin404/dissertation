@@ -8,6 +8,11 @@ pd.options.display.float_format = '{:.10f}'.format
 
 columns = ["cat","item_id","timetamp" , "target_value","pre_prediction","post_prediction","pre","post"]
 
+if len(sys.argv)>1:
+    file=sys.argv[1]
+else:
+    file='s3://dissert-430103706720-datalake/wilcoxon/rq1.csv'
+
 df = pd.read_csv(sys.argv[1],
     names = columns,
     low_memory=True,
