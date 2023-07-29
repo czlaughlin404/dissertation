@@ -12,9 +12,7 @@ td.item_id,
 td.timestamp,
 cast(td.target_value as decimal) target_value, 
 pre.post_prediction pre_prediction, 
-post.post_prediction post_prediction,
-abs(cast(td.target_value as decimal)-pre.post_prediction) pre_error, 
-abs(cast(td.target_value as decimal)-post.post_prediction) post_error
+post.post_prediction post_prediction
 from
 dissert.training_data td
 join  dissert.t_ensemble_deepar_uv pre
