@@ -1,4 +1,4 @@
-ret=$?
+ret=$#
 
 if [ $ret -ne 3 ]; then
   echo ""
