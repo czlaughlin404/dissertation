@@ -12,7 +12,7 @@ source activate pytorch
 for f in `cd $HOME/data/;ls -1Sr *.csv | head -1000`
 do
 
-	echo $f
+        echo $f
 
         running=`ps -ef | grep train.[p]y | wc -l`
 
@@ -25,12 +25,23 @@ do
         sleep 1
         echo "submitting "$f
 
-        python train.py $HOME/data/$f $HOME/predictions/$f $1 $2 &
+        # optional, add amp & to next line to submit UNIX background job if CPU can accommodate
+        python train.py $HOME/data/$f $HOME/predictions/$f $1 $2
 
 done
 
 echo "waiting on predict.py to complete"
 wait
+
+cd $HOME/predictions/
+
+for f in `ls -1Sr *.csv | head -1000`
+do
+        sed 's/:/,/g' $f > $f.temp
+        mv $f.temp $f
+done
+
+cd -
 
 aws s3 sync /home/ec2-user/predictions/ s3://dissert-430103706720-datalake/$3/
 
