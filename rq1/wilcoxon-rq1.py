@@ -13,7 +13,7 @@ if len(sys.argv)>1:
 else:
     file='s3://dissert-430103706720-datalake/wilcoxon/rq1.csv'
 
-df = pd.read_csv(sys.argv[1],
+df = pd.read_csv(file,
     names = columns,
     low_memory=True,
     header=1
