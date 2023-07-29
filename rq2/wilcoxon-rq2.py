@@ -9,7 +9,12 @@ pd.options.display.float_format = '{:.10f}'.format
 
 columns = ["cluster_member", "cat","item_id","timetamp" , "target_value","pre_prediction","post_prediction","pre","post"]
 
-df1 = pd.read_csv(sys.argv[1],
+if len(sys.argv)>1:
+    file=sys.argv[1]
+else:
+    file='s3://dissert-430103706720-datalake/wilcoxon/rq2-deepar-sbc.csv'
+
+df1 = pd.read_csv(file,
     names = columns,
     low_memory=True,
     header=1
