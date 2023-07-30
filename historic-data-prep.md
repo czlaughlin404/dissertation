@@ -1,9 +1,10 @@
 # Ordinal data preparation steps
 
 1. Download raw csv from [source](download-source.md).
-2. Place raw ZIP files stored: s3://dissert-430103706720-datalake/movement/zip/ for posterity, not for data processing.
-3. Unzip movement files stored: s3://dissert-430103706720-datalake/movement/csv/
-4.  Place SQL table on top of raw CSV
+2. Place raw ZIP files stored: `s3://dissert-430103706720-datalake/movement/zip/` for posterity, not for data processing.
+3. Unzip movement files stored: `s3://dissert-430103706720-datalake/movement/csv/`
+4. Place SQL table on top of raw CSV
+
 ```
 CREATE EXTERNAL TABLE IF NOT EXISTS dissert.movement(
  upc string,
@@ -31,7 +32,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS dissert.movement(
 | 5   | 139 | 3400000239 |  349 | 66 |  1 |   0.33   |  B  |  8.42  |   1  |  3FD51EB851EB851F  |   4020D70A3D70A3D7| 
 
 
-5.  Note, there are issues with some files have store and upc transposed as shown. This step transposes to correct data error.
+5.  Note, there are issues with some of the raw files.  Some have store and upc transposed as evident in the prior step. This step corrects the native data error.
 ```
 CREATE TABLE movement_aligned_csv
 WITH (
