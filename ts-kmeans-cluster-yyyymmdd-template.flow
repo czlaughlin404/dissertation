@@ -1,0 +1,289 @@
+{
+  "metadata": {
+    "version": 1,
+    "disable_limits": false,
+    "instance_type": "ml.m5.4xlarge"
+  },
+  "parameters": [],
+  "nodes": [
+    {
+      "node_id": "d905b6cb-9e8b-4422-8ec7-c3c133129ae3",
+      "type": "SOURCE",
+      "operator": "sagemaker.s3_source_0.1",
+      "parameters": {
+        "dataset_definition": {
+          "__typename": "S3CreateDatasetDefinitionOutput",
+          "datasetSourceType": "S3",
+          "name": "wsdr-uv.csv",
+          "description": null,
+          "s3ExecutionContext": {
+            "__typename": "S3ExecutionContext",
+            "s3Uri": "s3://{S3-bucket}/{folder}/{filename}",
+            "s3ContentType": "csv",
+            "s3HasHeader": true,
+            "s3FieldDelimiter": ",",
+            "s3DirIncludesNested": false,
+            "s3AddsFilenameColumn": false,
+            "s3RoleArn": null
+          }
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "default",
+          "sampling": {
+            "sampling_method": "sample_by_limit",
+            "limit_rows": 10000
+          }
+        }
+      ]
+    },
+    {
+      "node_id": "a6f46147-d5cd-4a60-b135-8dc24acae635",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.infer_and_cast_type_0.1",
+      "parameters": {},
+      "trained_parameters": {
+        "schema": {
+          "item_id": "float",
+          "timestamp": "date",
+          "target_value": "long"
+        }
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "d905b6cb-9e8b-4422-8ec7-c3c133129ae3",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "202c06c6-349a-4da3-bd55-29e82fd625f1",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import sum\n\n\n# output column names need to be item_ite, date, units\n# such that subsequent steps can execute.  if you prefer\n# alternate column names, edit later steps to match\n\ndf = df.withColumnRenamed(\"item_id\",\"item_id\") \\\n    .withColumnRenamed(\"timestamp\",\"date\") \\\n    .withColumnRenamed(\"target_value\",\"units\") \n"
+        },
+        "name": "pyspark-rename"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "a6f46147-d5cd-4a60-b135-8dc24acae635",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "ed98e28e-b285-49a3-8bb6-e721f968a292",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import sum\n\ndf = df.groupBy(\"item_id\",\"date\") \\\n  .agg(sum(\"units\").alias(\"target_value\")\n      )      \n            \ndf=df.select(\"date\",\"item_id\",\"target_value\")\n                                               \n  \n# fill missing with zero\ndf = df.na.fill(value=0)"
+        },
+        "name": "pyspark-aggregate-by-item"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "dd56ffb1-e173-42f4-82d2-cf5e78a37637",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "1b5de446-e6e3-41b5-923d-f54ab0088325",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import min,max, expr, sum\n\ndf = df.groupBy(\"item_id\",\"date\") \\\n  .agg(sum(\"units\").alias(\"target_value\")\n      )      \n             \ndf=df.select(\"date\",\"item_id\",\"target_value\")\n                                               \n  \ndf = df.groupBy(\"item_id\") \\\n\t.agg(min(\"target_value\").alias(\"min_units\"), \\\n    max(\"target_value\").alias(\"max_units\")\n        )\n\ncond = \"\"\"case \nwhen min_units < 0 then 0\nelse min_units\nend\nas min_units\"\"\"\n\ndf = df.withColumn(\"min_units\", expr(cond))\n\ndf = df.withColumn(\"range\", df.max_units-df.min_units)\n\ndf = df.select(\"item_id\",\"range\", \"min_units\")\n"
+        },
+        "name": "compute-item-range"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "dd56ffb1-e173-42f4-82d2-cf5e78a37637",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "68ba7ecb-14f6-43ed-bc86-05113b4628cf",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.join_tables_0.1",
+      "parameters": {
+        "left_column": "item_id",
+        "right_column": "item_id",
+        "join_type": "inner"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "1b5de446-e6e3-41b5-923d-f54ab0088325",
+          "output_name": "default"
+        },
+        {
+          "name": "df",
+          "node_id": "ed98e28e-b285-49a3-8bb6-e721f968a292",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "7ff5f08b-5a09-4556-9efc-ec47f18197cf",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import round\n\n\ndf = df.withColumn('scaled_target_value',round( (df.target_value-df.min_units)/df.range,2))\n\ndf = df.withColumnRenamed(\"item_id_1\",\"item_id\")\n\ndf = df.select(\"item_id\",\"date\",\"scaled_target_value\")"
+        },
+        "name": "scaled-demand"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "68ba7ecb-14f6-43ed-bc86-05113b4628cf",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "c9c49557-0abe-42c1-998a-047514ece8a2",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "df =  df.groupBy(\"item_id\").pivot(\"date\").sum(\"scaled_target_value\")\n# fill missing with zero\ndf = df.na.fill(value=-1)"
+        },
+        "name": "pivot-scaled-data"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "7ff5f08b-5a09-4556-9efc-ec47f18197cf",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "abcaab34-a990-452a-9044-1b37a2bfce1b",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.ml.clustering import KMeans\nfrom pyspark.ml.feature import VectorAssembler\n\n\n# feature columns to cluster are\n# all input columns minus item id\nfeature_columns = df.columns\nfeature_columns.remove('item_id')\n\nvecAssembler = VectorAssembler(inputCols=feature_columns, outputCol=\"features\")\ndf = vecAssembler.transform(df)\n\n# k=4\nkmeans = KMeans(k=4, seed=1)\nmodel = kmeans.fit(df.select('features'))\ndf = model.transform(df)\ndf = df.withColumnRenamed(\"prediction\",\"class04\")\n\n# k=8\nkmeans = KMeans(k=8, seed=1)\nmodel = kmeans.fit(df.select('features'))\ndf = model.transform(df)\ndf = df.withColumnRenamed(\"prediction\",\"class08\")\n\n# k=16\nkmeans = KMeans(k=16, seed=1) \nmodel = kmeans.fit(df.select('features'))\ndf = model.transform(df)\ndf = df.withColumnRenamed(\"prediction\",\"class16\")\n\n# k=32\nkmeans = KMeans(k=32, seed=1)\nmodel = kmeans.fit(df.select('features'))\ndf = model.transform(df)\ndf = df.withColumnRenamed(\"prediction\",\"class32\")\n\n# reshape for export\n#df = df.drop(\"features\")\ndf = df.select(\"item_id\",\"class04\", \"class08\", \"class16\", \"class32\")\n"
+        },
+        "name": "kmeans-cluster"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "c9c49557-0abe-42c1-998a-047514ece8a2",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "dd56ffb1-e173-42f4-82d2-cf5e78a37637",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import current_date\nfrom pyspark.sql import functions as F\n\n# this step is necessary to expose a fraction of a timeline to\n# the clustering process.  you might want to cluster on recent\n# period performance only.  In addition, this helps limit the \n# number of columns in the pivoted dataframe in subsequent transformations\nmonths_to_add = -24000  #note negative value -N months ago\n\n# set working storage column\ndf = df.withColumn(\"filter_date\", F.add_months(\"current_date\", months_to_add))\n\n# apply filter\ndf = df[df['date']>=df['filter_date']]\n\n# drop working storage column\ndf = df.drop('filter_date')\n\n"
+        },
+        "name": "filter date range"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "202c06c6-349a-4da3-bd55-29e82fd625f1",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "d0f629eb-eb66-475b-965a-d2b159bc4220",
+      "type": "DESTINATION",
+      "operator": "sagemaker.spark.s3_destination_0.1",
+      "name": "S3: output-cluster-labels",
+      "parameters": {
+        "output_config": {
+          "compression": "none",
+          "output_path": "s3://{S3-bucket}/{folder}/",
+          "output_content_type": "CSV",
+          "delimiter": ","
+        }
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "abcaab34-a990-452a-9044-1b37a2bfce1b",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    }
+  ]
+}

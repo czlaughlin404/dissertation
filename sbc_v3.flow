@@ -1,0 +1,492 @@
+{
+  "metadata": {
+    "version": 1,
+    "disable_limits": false,
+    "instance_type": "ml.m5.4xlarge"
+  },
+  "parameters": [],
+  "nodes": [
+    {
+      "node_id": "52579b00-6ae0-4396-876c-648a26686cf9",
+      "type": "SOURCE",
+      "operator": "sagemaker.s3_source_0.1",
+      "parameters": {
+        "dataset_definition": {
+          "__typename": "S3CreateDatasetDefinitionOutput",
+          "datasetSourceType": "S3",
+          "name": "input",
+          "description": null,
+          "s3ExecutionContext": {
+            "__typename": "S3ExecutionContext",
+            "s3Uri": "s3://demo-input-249165091125-us-west-2/online-retail-ii/input/",
+            "s3ContentType": "csv",
+            "s3HasHeader": true,
+            "s3FieldDelimiter": ",",
+            "s3DirIncludesNested": false,
+            "s3AddsFilenameColumn": false,
+            "s3RoleArn": null
+          }
+        }
+      },
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "a6f46147-d5cd-4a60-b135-8dc24acae635",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.infer_and_cast_type_0.1",
+      "parameters": {},
+      "trained_parameters": {
+        "schema": {
+          "StockCode": "long",
+          "Quantity": "long",
+          "InvoiceDate": "date",
+          "Customer ID": "long"
+        }
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "52579b00-6ae0-4396-876c-648a26686cf9",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "b6469673-5f10-4b9d-8e1d-23f247637d6a",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import sum, avg, max, min, mean, count, stddev, countDistinct, col,round, expr\n\nfrom pyspark.sql import functions as F\n\n\n# Provide the list of colums defining groups\ngroupby_cols = [\"item_id\"]\n\n# Specify the map of aggregate function to the list of colums\n# aggregates to use: sum, avg, max, min, mean, cout\naggregate_map = {sum: [\"units\"], countDistinct: [\"date\"],\n                avg: [\"units\"], stddev: [\"units\"], \n                max:[\"date\"], min:[\"date\"]}\n\n\nall_aggregates = []\nfor a, cols in aggregate_map.items():\n    all_aggregates += [a(col) for col in cols]\n\ndf = df.groupBy(groupby_cols).agg(*all_aggregates)\n\n\ndf = df.withColumnRenamed(\"avg(units)\",\"mean\")\ndf = df.withColumnRenamed(\"stddev_samp(units)\",\"sd\")\ndf = df.withColumnRenamed(\"count(date)\",\"unique_item_date\")\ndf = df.withColumnRenamed(\"sum(units)\",\"sum_units\")\ndf = df.withColumnRenamed(\"max(date)\",\"last_date\")\ndf = df.withColumnRenamed(\"min(date)\",\"first_date\")\n\n\n\ndf = df.withColumn('cv2',round( pow(  df.sd /df.mean,2),2))\ndf = df.withColumn('mean',round( df.mean,2))\ndf = df.withColumn('sd',round( df.sd,2))\n\n#compute average demand interval\ndf1 = df.agg(max('unique_item_date'))\ndf1 = df1.withColumnRenamed(\"max(unique_item_date)\",\"unique_global_date\")\ndf = df.join(df1)\ndf = df.withColumn('adi',round( df.unique_global_date/df.unique_item_date,2))\n\n\n#compute item sales contribution\ndf1 = df.agg(sum('sum_units'))\ndf1 = df1.withColumnRenamed(\"sum(sum_units)\",\"global_sales\")\ndf = df.join(df1)\ndf = df.withColumn('pct_contrib',round( df.sum_units/df.global_sales,3))\n\n\ncond = \"\"\"case when adi >= 1.32 and cv2 <=0.49 then 'Intermittent' \n\t\t  else case when adi >= 1.32 and cv2 >0.49 then 'Lumpy' \n          else case when adi < 1.32 and cv2 <=0.49 then 'Smooth' \n          else case when adi < 1.32 and cv2 >0.49 then 'Erratic' \n          end end end end as class\"\"\"\n\ndf = df.withColumn(\"class\", expr(cond))\n\n"
+        },
+        "name": "sbc"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "7a5029ff-ce88-41be-863c-81e401e10a9a",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "07436e3d-49fa-4ba9-bc83-54030af0048a",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.manage_columns_0.1",
+      "parameters": {
+        "operator": "Drop column",
+        "drop_column_parameters": {
+          "column_to_drop": [
+            "global_sales",
+            "sum_units",
+            "unique_global_date",
+            "unique_item_date"
+          ]
+        }
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "d47705fe-51ef-4b21-8798-b0e7cd54f19e",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "2b7e3657-78a8-468c-99ad-0aaf1a711f14",
+      "type": "VISUALIZATION",
+      "operator": "sagemaker.visualizations.histogram_0.1",
+      "parameters": {
+        "name": "Syntetos-Boylan Classification",
+        "x_axis": "class"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "07436e3d-49fa-4ba9-bc83-54030af0048a",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "d47705fe-51ef-4b21-8798-b0e7cd54f19e",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "# Table is available as variable `df`\ndf = df[df['sum_units'] >1]"
+        },
+        "pandas_parameters": {
+          "code": "# Table is available as variable `df`\ndf = df[df['sum_units'] >1]"
+        },
+        "udf_parameters": {
+          "return_type": "string",
+          "udf_mode": "Pandas"
+        },
+        "name": "units-filter "
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "b6469673-5f10-4b9d-8e1d-23f247637d6a",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "0c51bcd3-b254-4da6-aea9-bf03c1fa422a",
+      "type": "VISUALIZATION",
+      "operator": "sagemaker.visualizations.scatterplot_0.1",
+      "parameters": {
+        "name": "SBC Scatterplot",
+        "x_axis": "adi",
+        "y_axis": "cv2"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "07436e3d-49fa-4ba9-bc83-54030af0048a",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "9272d11a-29c3-4a16-9a80-90425e7e0a59",
+      "type": "DESTINATION",
+      "operator": "sagemaker.spark.s3_destination_0.1",
+      "name": "S3: sbc-summary",
+      "parameters": {
+        "output_config": {
+          "compression": "none",
+          "output_path": "s3://demo-input-249165091125-us-west-2/sba-test/output/",
+          "output_content_type": "CSV",
+          "delimiter": ","
+        }
+      },
+      "inputs": [
+        {
+          "name": "default",
+          "node_id": "07436e3d-49fa-4ba9-bc83-54030af0048a",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "b3f5c274-2c61-4c90-aa0c-f873999d46ec",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import sum\n\n# compensate for no header record\ndf = df.withColumnRenamed(\"StockCode\",\"item_id\") \\\n    .withColumnRenamed(\"Quantity\",\"units\") \\\n    .withColumnRenamed(\"InvoiceDate\",\"date\") \\\n    .withColumnRenamed(\"Customer ID\",\"locale\") \n"
+        },
+        "name": "pyspark-rename"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "a6f46147-d5cd-4a60-b135-8dc24acae635",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "7a5029ff-ce88-41be-863c-81e401e10a9a",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "from pyspark.sql.functions import sum\n\ndf = df.groupBy(\"item_id\", \"date\") \\\n  .agg(sum(\"units\").alias(\"units\")\n      )\n\n# fill missing with zero\ndf = df.na.fill(value=0)"
+        },
+        "name": "pyspark-aggregate-by-item"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "b3f5c274-2c61-4c90-aa0c-f873999d46ec",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "75252a07-03dd-4b30-bdf0-449c417ca10b",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.join_tables_0.1",
+      "parameters": {
+        "left_column": "item_id",
+        "right_column": "item_id",
+        "join_type": "inner"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "07436e3d-49fa-4ba9-bc83-54030af0048a",
+          "output_name": "default"
+        },
+        {
+          "name": "df",
+          "node_id": "b3f5c274-2c61-4c90-aa0c-f873999d46ec",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "06113da9-29a0-4fe6-9f49-5b4eebe26228",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "df = df.withColumnRenamed(\"item_id_1\",\"item_id\")\ndf = df[df['class']=='Lumpy']\n\nretain_cols = (\"item_id\",\"locale\",\"date\",\"units\")\n\ndf = df.select(*retain_cols)\n"
+        },
+        "name": "lumpy"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "75252a07-03dd-4b30-bdf0-449c417ca10b",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "6ecd0fd9-55e8-43c4-8bea-9779a95e0f40",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "df = df.withColumnRenamed(\"item_id_1\",\"item_id\")\ndf = df[df['class']=='Erratic']\n\nretain_cols = (\"item_id\",\"locale\",\"date\",\"units\")\n\ndf = df.select(*retain_cols)"
+        },
+        "name": "erratic"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "75252a07-03dd-4b30-bdf0-449c417ca10b",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "bf6ba322-20ee-4f43-9096-c3a69513b35b",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "df = df.withColumnRenamed(\"item_id_1\",\"item_id\")\ndf = df[df['class']=='Smooth']\n\nretain_cols = (\"item_id\",\"locale\",\"date\",\"units\")\n\ndf = df.select(*retain_cols)"
+        },
+        "name": "smooth"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "75252a07-03dd-4b30-bdf0-449c417ca10b",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "20d9b1ed-02a3-4650-9ec4-1e83d5105e97",
+      "type": "TRANSFORM",
+      "operator": "sagemaker.spark.custom_code_0.1",
+      "parameters": {
+        "operator": "Python (PySpark)",
+        "pyspark_parameters": {
+          "code": "df = df.withColumnRenamed(\"item_id_1\",\"item_id\")\ndf = df[df['class']=='Intermittent']\n\nretain_cols = (\"item_id\",\"locale\",\"date\",\"units\")\n\ndf = df.select(*retain_cols)"
+        },
+        "name": "intermittent"
+      },
+      "inputs": [
+        {
+          "name": "df",
+          "node_id": "75252a07-03dd-4b30-bdf0-449c417ca10b",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "b6992800-97b4-4a9b-bd28-493a9fe84cfe",
+      "type": "DESTINATION",
+      "operator": "sagemaker.spark.s3_destination_0.1",
+      "name": "S3: lumpy",
+      "parameters": {
+        "output_config": {
+          "compression": "none",
+          "output_path": "s3://demo-input-249165091125-us-west-2/sba-test/output/lumpy/",
+          "output_content_type": "CSV",
+          "delimiter": ","
+        }
+      },
+      "inputs": [
+        {
+          "name": "default",
+          "node_id": "06113da9-29a0-4fe6-9f49-5b4eebe26228",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "386a4c55-268b-49c6-83b6-d44b3f6da02d",
+      "type": "DESTINATION",
+      "operator": "sagemaker.spark.s3_destination_0.1",
+      "name": "S3: erratic",
+      "parameters": {
+        "output_config": {
+          "compression": "none",
+          "output_path": "s3://demo-input-249165091125-us-west-2/sba-test/output/erratic/",
+          "output_content_type": "CSV",
+          "delimiter": ","
+        }
+      },
+      "inputs": [
+        {
+          "name": "default",
+          "node_id": "6ecd0fd9-55e8-43c4-8bea-9779a95e0f40",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "27654633-a97d-4197-a7da-ce1210171c38",
+      "type": "DESTINATION",
+      "operator": "sagemaker.spark.s3_destination_0.1",
+      "name": "S3: smooth",
+      "parameters": {
+        "output_config": {
+          "compression": "none",
+          "output_path": "s3://demo-input-249165091125-us-west-2/sba-test/output/smooth/",
+          "output_content_type": "CSV",
+          "delimiter": ","
+        }
+      },
+      "inputs": [
+        {
+          "name": "default",
+          "node_id": "bf6ba322-20ee-4f43-9096-c3a69513b35b",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    },
+    {
+      "node_id": "f46eba52-c86a-40c5-97a5-a5ab6b9753ca",
+      "type": "DESTINATION",
+      "operator": "sagemaker.spark.s3_destination_0.1",
+      "name": "S3: intermittent",
+      "parameters": {
+        "output_config": {
+          "compression": "none",
+          "output_path": "s3://demo-input-249165091125-us-west-2/sba-test/output/intermittent",
+          "output_content_type": "CSV",
+          "delimiter": ","
+        }
+      },
+      "inputs": [
+        {
+          "name": "default",
+          "node_id": "20d9b1ed-02a3-4650-9ec4-1e83d5105e97",
+          "output_name": "default"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "default"
+        }
+      ]
+    }
+  ]
+}
