@@ -1,7 +1,7 @@
 # Ordinal data preparation steps
 
-1. Download raw csv from source
-2. Place raw ZIP files stored: s3://dissert-430103706720-datalake/movement/zip/
+1. Download raw csv from [source](download-source.md).
+2. Place raw ZIP files stored: s3://dissert-430103706720-datalake/movement/zip/ for posterity, not for data processing.
 3. Unzip movement files stored: s3://dissert-430103706720-datalake/movement/csv/
 4.  Place SQL table on top of raw CSV
 ```
