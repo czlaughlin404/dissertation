@@ -1,3 +1,4 @@
+
 # Build cloud server
 
 1. Use Deep Learning machine image with pytorch installed, ami-09c8945ef3e92c451
@@ -17,10 +18,11 @@
 
 3.  Add permissions, security groups, etc
 
-|  IAM role  |  S3-EC2-Full-Admin |
+|topic|comment|
 |----|----|
-| VPC | vpc-a31397c8 |
-| SG | sg-04e79bfabc9bbb340 (launch-wizard-3)|
+| IAM role  |  needs S3, Athena, Glue |
+| VPC | public subnet |
+| SG | needs to allow connection for you |
 
 4. Connect to the server via SSH
 
@@ -30,35 +32,4 @@ git clone https://github.com/czlaughlin404/dissertation.git
 chmod 770 $HOME/dissertation/*.sh
 cd $HOME/dissertation/
 dependency.sh
-```
-
-6. Harvest data and generate forecasts for any number of discrete data or model types
-```
-clear
-source activate pytorch
-python3 harvest.py test1.csv "item_id like '18.%3828100213'"
-python3 harvest.py test2.csv "item_id like '18.%3828100313'"
-```
-7. Train and generate forecast
-```
-./train.sh 
-./train.sh AutoARIMA uv experimentname
-```
-
-8. Place data lake view on CSV data
-
-```
-CREATE EXTERNAL TABLE experimentname (
-  `cat` string, 
-  `item_id` string, 
-  `timestamp` string, 
-  `mean` float)
-ROW FORMAT DELIMITED 
-  FIELDS TERMINATED BY ',' 
-STORED AS INPUTFORMAT 
-  'org.apache.hadoop.mapred.TextInputFormat' 
-OUTPUTFORMAT 
-  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
-LOCATION
-  's3://dissert-430103706720-datalake/experimentname/'
 ```
