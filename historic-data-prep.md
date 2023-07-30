@@ -294,7 +294,7 @@ on (cl.item_id= d.category||':'||d.item_id)
 group by cl.class16
  ```
 
-13. Import results from Data Wrangler Syntetos-Boylan Classification (SBC) label. In this step, sbc_v3.flow is provided. Here, SageMaker Data Wrangler was used as pyspark large data processor to load a monolith dataset, more than 100M rows and cluster the data based on shape. This flow file computes the cv2 and adi variables per time series and assigns the correct classification label.
+13. Import results from Data Wrangler Syntetos-Boylan Classification (SBC) label. In this step, [sbc_v3.flow](sbc_v3.flow) is provided. Here, SageMaker Data Wrangler was used as pyspark large data processor to load a monolith dataset, more than 100M rows and cluster the data based on shape. This flow file computes the cv2 and adi variables per time series and assigns the correct classification label.
     
 ```
 CREATE EXTERNAL TABLE rq3_cluster_sbc_label(
