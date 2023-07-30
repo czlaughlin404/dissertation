@@ -266,7 +266,9 @@ on (move.week = cw.week)
 order by category, item_id, timestamp
 ```
 
-12.  Import results from Data Wrangler Kmeans cluster label
+
+12.  Import results from Data Wrangler Kmeans cluster label.  In this step, [ts-kmeans-cluster-yyyymmdd-template.flow](ts-kmeans-cluster-yyyymmdd-template.flow)  is provided. Here, SageMaker Data Wrangler was used as pyspark large data processor to load a monolith dataset, more than 100M rows and cluster the data based on shape.  This flow file pivots the data, scales demand on a 0-100% basis for each store+UPC combination.  The resulting output file has many clusters to test from, this research used k=16 andk=64.
+
 ```
  CREATE EXTERNAL TABLE IF NOT EXISTS dissert.rq3_cluster_label (
  item_id string,
@@ -283,6 +285,7 @@ order by category, item_id, timestamp
  TBLPROPERTIES ("skip.header.line.count"="1")
 ```
 
+Explore the cluster members as follows.
 ```
 select
 cl.class16,count(1)
@@ -290,7 +293,9 @@ from rq3_cluster_label cl join rq3_monolith_all_category d
 on (cl.item_id= d.category||':'||d.item_id)
 group by cl.class16
  ```
-13. Import results from Data Wrangler SBC Cluster Label
+
+13. Import results from Data Wrangler Syntetos-Boylan Classification (SBC) label. In this step, sbc_v3.flow is provided. Here, SageMaker Data Wrangler was used as pyspark large data processor to load a monolith dataset, more than 100M rows and cluster the data based on shape. This flow file computes the cv2 and adi variables per time series and assigns the correct classification label.
+    
 ```
 CREATE EXTERNAL TABLE rq3_cluster_sbc_label(
   item_id string ,
